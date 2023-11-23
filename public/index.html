@@ -6,6 +6,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="css/bootstrap/bootstrap.css" rel="stylesheet" type="text/css">
         <script src="js/bootstrap/bootstrap.bundle.js" type="application/javascript" defer></script>
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__de.js"></script>
+        <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
         <title>WebApp mit Firebase</title>
     </head>
     <body>
@@ -15,7 +19,63 @@
             </div>
             <div class="subtext">
                 Template V1.0.0 MaKno
-            </div> 
+            </div>
+            <div id="userinfo" style="display: none;">
+                <p><b>Benutzer angemeldet</b></p>
+                <p id="username"></p>
+                <p id="email"></p>
+                <button id="signOutButton">Sign Out</button>
+            </div>
+            <div id="firebaseui-auth-container"></div>
+        </div>
+        <script type="module">
+            function handleSignedInUser(user) {
+                var firebase_div = document.getElementById("firebaseui-auth-container");
+                var userinfo_div = document.getElementById("userinfo");
+
+                document.getElementById('username').innerText = user._delegate.displayName;
+                document.getElementById('email').innerText = user._delegate.email;
+
+                firebase_div.style.display = 'none';
+                userinfo_div.style.display = 'block';
+            }
+
+            // Konfiguration
+            const firebaseConfig = {
+                apiKey: "apikey",
+                authDomain: "mywebapp-7fec6.firebaseapp.com",
+                projectId: "mywebapp-7fec6",
+                storageBucket: "mywebapp-7fec6.appspot.com",
+                messagingSenderId: "104929876926",
+                appId: "1:104929876926:web:930cc680bf30814b9577ef",
+                measurementId: "G-Z4MX3M46EZ"
+            };
+
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+
+            // Ab hier kommen die weiteren Anwendungen von Firebase hin
+            var ui = new firebaseui.auth.AuthUI(firebase.auth());
+            var uiConfig = {
+                signInOptions: [
+                    firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                    firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+                ],
+                callbacks: {
+                    signInSuccessWithAuthResult: function (authResult, redirectUrl) {
+                        if (authResult.user) {
+                            handleSignedInUser(authResult.user);
+                        }
+                        console.log("User logged in successfully!");
+                        return false;
+                    }
+                },
+                signInFlow: 'popup',
+                signInSuccessUrl: 'not-existing.html'
+            };
+
+            ui.start('#firebaseui-auth-container', uiConfig);
+        </script>
     </body>
 </html>
 
