@@ -6,8 +6,8 @@
   "scripts": {
     "watch-ts": "tsc.cmd --watch",
     "watch-sass": "sass.cmd src/sass:public/css --watch",
-    "watch-http": "vite serve -d --port 8123 --cors public",
-    "watch": "concurrently.cmd --kill-others -c black.bgGreen.bold,black.bgBlue.bold,black.bgMagenta.bold \"npm:watch-*\""
+    "watch-http": "vite serve -d --port 8123 --host 0.0.0.0 --cors public",
+    "watch": "concurrently --kill-others -c black.bgGreen.bold,black.bgBlue.bold,black.bgMagenta.bold \"npm:watch-*\""
   },
   "keywords": [],
   "author": "",
