@@ -7,30 +7,53 @@
         <link href="css/bootstrap/bootstrap.css" rel="stylesheet" type="text/css">
         <script src="js/bootstrap/bootstrap.bundle.js" type="application/javascript" defer></script>
         <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+
         <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__de.js"></script>
         <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
-        <title>WebApp mit Firebase</title>
+
+        <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-database-compat.js"></script>
+        <title>TimeRecording with Firebase</title>
     </head>
     <body>
         <div class="container-fluid">
             <div id="header_content">
-                <h1 class="title">WebApp mit Firebase</h1>
-            </div>
-            <div class="subtext">
-                Template V1.0.0 MaKno
+                <h1 class="title">TimeRecording with Firebase</h1>
             </div>
             <div id="userinfo" style="display: none;">
                 <p><b>Benutzer angemeldet</b></p>
                 <p id="username"></p>
                 <p id="email"></p>
-                <button id="signOutButton">Sign Out</button>
+            </div>
+            <div id="timerecords_div" style="display: none;">
+                <p>Arrive/Leave now</p>
+                <p id="currentPresenceP"></p>
+                <button type="button" onclick="handleClickArrive()">Arrive</button>
+                <button type="button" onclick="handleClickLeave()">Leave</button>
+                <br/>
+                <p>Time Recordings</p>
+                <table border="1">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                      </tr>
+                    </thead>
+                    <tbody id="timeRecordsTableBody"></tbody>
+                </table>
             </div>
             <div id="firebaseui-auth-container"></div>
         </div>
         <script type="module">
+            window.userLoggedIn = false;
+
+            window.handleClickLeave = handleClickLeave;
+            window.handleClickArrive = handleClickArrive;
+
             function handleSignedInUser(user) {
                 var firebase_div = document.getElementById("firebaseui-auth-container");
+                var timerecords_div = document.getElementById("timerecords_div");
                 var userinfo_div = document.getElementById("userinfo");
 
                 document.getElementById('username').innerText = user._delegate.displayName;
@@ -38,6 +61,149 @@
 
                 firebase_div.style.display = 'none';
                 userinfo_div.style.display = 'block';
+                timerecords_div.style.display = 'block';
+            }
+
+            function readTimeRecords(user) {
+                const timerecordsRef = firebase.database().ref('timerecords/11801561');
+
+                timerecordsRef.once('value')
+                .then(snapshot => {
+                    const timeRecords = snapshot.val();
+
+                    const tableBody = document.getElementById('timeRecordsTableBody');
+                    tableBody.innerHTML = '';
+
+                    for (const recordId in timeRecords) {
+                        const record = timeRecords[recordId];
+                        const row = tableBody.insertRow();
+                        row.insertCell(0).innerText = record.date;
+                        row.insertCell(1).innerText = record.time;
+                        row.insertCell(2).innerText = record.type;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching timerecords:', error);
+                });
+            }
+
+            function getPresenceStatus(employeeId) {
+                var employeeRef = database.ref('employees/' + employeeId + '/presence');
+
+                return employeeRef.once('value')
+                    .then(function(snapshot) {
+                        var presenceStatus = snapshot.val();
+
+                        console.log('Presence Status:', presenceStatus);
+
+                        var currentPresenceP = document.getElementById("currentPresenceP");
+                        let state = "Absent";
+                        if (presenceStatus === true) {
+                            state = "Present";
+                        }
+                        currentPresenceP.innerHTML = state;
+
+                        return presenceStatus;
+                    })
+                    .catch(function(error) {
+                        console.error('Error getting presence status:', error);
+                        throw error;
+                    });
+            }
+
+            function getCurrentDate() {
+                var currentDate = new Date();
+                var formattedDate = currentDate.toISOString().slice(0, 10);
+                return formattedDate;
+            }
+
+            function getCurrentTime() {
+                var currentDate = new Date();
+
+                var hours = currentDate.getHours();
+                var minutes = currentDate.getMinutes();
+                var seconds = currentDate.getSeconds();
+
+                hours = (hours < 10) ? '0' + hours : hours;
+                minutes = (minutes < 10) ? '0' + minutes : minutes;
+                seconds = (seconds < 10) ? '0' + seconds : seconds;
+
+                var formattedTime = hours + ':' + minutes + ':' + seconds;
+
+                return formattedTime;
+            }
+
+            function addTimeRecord(employeeId, newPresenceStatus) {
+                var timerecordsRef = database.ref('timerecords/' + employeeId);
+
+                var newTimeRecordKey = timerecordsRef.push().key;
+
+                let state = "leave";
+                if (newPresenceStatus === true) {
+                    state = "arrive";
+                }
+
+                var timeRecordData = {
+                    date: getCurrentDate(),
+                    time: getCurrentTime(),
+                    type: state,
+                };
+
+                return timerecordsRef.child(newTimeRecordKey).set(timeRecordData)
+                .then(function() {
+                    console.log('Time Recording added successfully!');
+                })
+                .catch(function(error) {
+                    console.error('Error adding time recording:', error);
+                    throw error; // Propagate the error for handling elsewhere
+                });
+            }
+
+            function handleClickArrive() {
+                let employeeId = "11801561";
+                console.log("arrive");
+                getPresenceStatus(employeeId)
+                .then(function(presenceStatus) {
+                    if (presenceStatus === false) {
+                        addTimeRecord(employeeId, !presenceStatus);
+                        changePresenceStatus(employeeId, !presenceStatus);
+                        getPresenceStatus(employeeId);
+                        readTimeRecords("11801561");
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                });
+            }
+
+            function changePresenceStatus(employeeId, newPresenceStatus) {
+                var employeeRef = database.ref('employees/' + employeeId + '/presence');
+
+                return employeeRef.set(newPresenceStatus)
+                .then(function() {
+                    console.log('Presence Status updated successfully!');
+                })
+                .catch(function(error) {
+                    console.error('Error updating presence status:', error);
+                    throw error;
+                });
+            }
+
+            function handleClickLeave() {
+                let employeeId = "11801561";
+                console.log("leave");
+                getPresenceStatus(employeeId)
+                .then(function(presenceStatus) {
+                    if (presenceStatus === true) {
+                        addTimeRecord(employeeId, !presenceStatus);
+                        changePresenceStatus(employeeId, !presenceStatus);
+                        getPresenceStatus(employeeId);
+                        readTimeRecords("11801561");
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                });
             }
 
             // Konfiguration
@@ -48,11 +214,13 @@
                 storageBucket: "mywebapp-7fec6.appspot.com",
                 messagingSenderId: "104929876926",
                 appId: "1:104929876926:web:930cc680bf30814b9577ef",
-                measurementId: "G-Z4MX3M46EZ"
+                measurementId: "G-Z4MX3M46EZ",
+                databaseURL: "https://mywebapp-7fec6-default-rtdb.europe-west1.firebasedatabase.app"
             };
 
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
+            const database = firebase.database();
 
             // Ab hier kommen die weiteren Anwendungen von Firebase hin
             var ui = new firebaseui.auth.AuthUI(firebase.auth());
@@ -67,6 +235,9 @@
                             handleSignedInUser(authResult.user);
                         }
                         console.log("User logged in successfully!");
+                        userLoggedIn = true;
+                        getPresenceStatus("11801561");
+                        readTimeRecords("11801561");
                         return false;
                     }
                 },
@@ -75,6 +246,7 @@
             };
 
             ui.start('#firebaseui-auth-container', uiConfig);
+
         </script>
     </body>
 </html>
