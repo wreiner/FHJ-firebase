@@ -24,6 +24,7 @@
                 <p><b>Benutzer angemeldet</b></p>
                 <p id="username"></p>
                 <p id="email"></p>
+                <button id="logoutButton" type="button" onclick="handleLogout()">Logout</button>
             </div>
             <div id="timerecords_div" style="display: none;">
                 <p>Arrive/Leave now</p>
@@ -50,18 +51,16 @@
 
             window.handleClickLeave = handleClickLeave;
             window.handleClickArrive = handleClickArrive;
+            window.handleLogout = handleLogout;
 
             function handleSignedInUser(user) {
-                var firebase_div = document.getElementById("firebaseui-auth-container");
-                var timerecords_div = document.getElementById("timerecords_div");
-                var userinfo_div = document.getElementById("userinfo");
-
                 document.getElementById('username').innerText = user._delegate.displayName;
                 document.getElementById('email').innerText = user._delegate.email;
 
-                firebase_div.style.display = 'none';
-                userinfo_div.style.display = 'block';
-                timerecords_div.style.display = 'block';
+                document.getElementById("firebaseui-auth-container").style.display = 'none';
+                document.getElementById("timerecords_div").style.display = 'block';
+                document.getElementById("userinfo").style.display = 'block';
+                document.getElementById('logoutButton').style.display = 'block';
             }
 
             function readTimeRecords(user) {
@@ -206,6 +205,20 @@
                 });
             }
 
+            function handleLogout() {
+                firebase.auth().signOut().then(function() {
+                    console.log('User logged out');
+
+                    document.getElementById('userinfo').style.display = 'none';
+                    var firebase_div = document.getElementById("firebaseui-auth-container");
+                    firebase_div.style.display = 'block';
+
+                    userLoggedIn = false;
+                }).catch(function(error) {
+                    console.error('Logout error:', error);
+                });
+            }
+
             // Konfiguration
             const firebaseConfig = {
                 apiKey: "apikey",
@@ -222,6 +235,22 @@
             firebase.initializeApp(firebaseConfig);
             const database = firebase.database();
 
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    handleSignedInUser(user);
+                    userLoggedIn = true;
+                    getPresenceStatus("11801561");
+                    readTimeRecords("11801561");
+                } else {
+                    document.getElementById("firebaseui-auth-container").style.display = 'block';
+                    document.getElementById("timerecords_div").style.display = 'none';
+                    document.getElementById("userinfo").style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none';
+
+                    ui.start('#firebaseui-auth-container', uiConfig);
+                }
+            });
+
             // Ab hier kommen die weiteren Anwendungen von Firebase hin
             var ui = new firebaseui.auth.AuthUI(firebase.auth());
             var uiConfig = {
@@ -231,13 +260,6 @@
                 ],
                 callbacks: {
                     signInSuccessWithAuthResult: function (authResult, redirectUrl) {
-                        if (authResult.user) {
-                            handleSignedInUser(authResult.user);
-                        }
-                        console.log("User logged in successfully!");
-                        userLoggedIn = true;
-                        getPresenceStatus("11801561");
-                        readTimeRecords("11801561");
                         return false;
                     }
                 },
@@ -245,7 +267,7 @@
                 signInSuccessUrl: 'not-existing.html'
             };
 
-            ui.start('#firebaseui-auth-container', uiConfig);
+            // ui.start('#firebaseui-auth-container', uiConfig);
 
         </script>
     </body>
